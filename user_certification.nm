@@ -1,0 +1,99 @@
+pta
+
+const Max = 5;
+
+// Main module
+module user_certification
+
+Start : bool init true;
+Idle : bool init false;
+initializing : bool init false;
+Diagnosing : bool init false;
+Operating : bool init false;
+
+passed : bool init false;
+
+fin : bool init false;
+
+dex : bool init false;
+
+syok : bool init false;
+synotok : bool init false;
+
+x :clock;
+invariant (Diagnosing=true => x<=5) endinvariant
+
+[start] Start -> (Start'=false) & (Idle'=true);
+[Idle] Idle -> (Idle'=false) & (initializing'=true) ;
+[TurnOff] Idle -> (Idle'=false) & (fin'=true) ;
+
+[do] initializing & !passed -> (passed'=true);
+[Error] initializing & !passed -> (Diagnosing'=true)&(x'=0);
+[TimeOut] initializing & !passed ->(Idle'=true);
+
+[initializing] initializing & passed ->(Operating'=true) & (initializing'=false);
+[Diagnosing] Diagnosing & x>=2 -> (Diagnosing'=false)& (dex'=true);
+
+[dex1] dex -> (dex'=false) & (syok'=true) ;
+[dex2] dex -> (dex'=false) & (synotok'=true) ;
+
+[syok] syok ->(Operating'=true) & (syok'=false) ;
+[synotok] synotok ->(Idle'=true) & (synotok'=false) ;
+
+[Operating] Operating ->(Operating'=false);
+[aspect] (Idle=false=> true) -> (Idle'=true);
+
+[fin] fin -> (fin'=false)& (Start'=false)& (initializing'=false) &  (Diagnosing'=false) & (Operating'=false);
+endmodule
+
+
+// Substate
+module in_Operating
+
+Start2 : bool init false;
+logged_on : bool init false;
+logged_off : bool init false;
+junction1 : bool init false;
+junction11 : bool init false;
+junction12 : bool init false;
+logged_in :[0..Max] init 0;
+Decision :  bool init false;
+loginNot0 :   bool init false;
+login0 :   bool init false;
+
+aspect :   bool init false;
+
+//Synchronization
+[Operating] (Start2=false=> true) -> (Start2'=true) & (logged_in'=0);
+
+[Start2] Start2 ->(Start2'=false) & (logged_off'=true);
+
+[logged_off] logged_off ->(logged_off'=false) & (junction11'=true);
+
+[junction11] junction11 -> (junction11'=false)&(junction1'=true);
+[junction12] junction12 -> (junction12'=false)&(junction1'=true);
+
+[junction1] junction1 & logged_in<Max ->(junction1'=false) & (logged_on'=true)& (logged_in'=min(Max,logged_in+1));
+
+[logged_on] logged_on ->(logged_on'=false) & (junction12'=true);
+
+[logged_on_or] logged_on & logged_in>=1 ->(logged_on'=false) & (Decision'=true) & (logged_in'=min(logged_in,logged_in-1));
+
+[Decision] Decision -> 0.4:(Decision'=false)&(login0'=true)+0.6:(Decision'=false)&(loginNot0'=true);
+
+[loginNot0] loginNot0 & (logged_in!=0) ->(loginNot0'=false) & (logged_on'=true);
+
+[login0] login0 & (logged_in=0)->(login0'=false) & (logged_off'=true);
+
+//escape from the substate
+[logged_off2] logged_off -> (aspect'=true);
+
+[logged_on2] logged_on -> (aspect'=true);
+
+[aspect] aspect -> (aspect'=false) & (logged_in'=0) & (login0'=false) & (loginNot0'=false) & (junction1'=false)& (Decision'=false) & (logged_off'=false)& (logged_on'=false) ; 
+
+endmodule
+
+
+
+
